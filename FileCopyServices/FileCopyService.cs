@@ -71,10 +71,10 @@ namespace FileCopyServices
 
                 if (file.Length == 0)
                 {
-                    Log.Information($"File at path '{filePath}' will be skipped since it's size is too small to transfer: {file.Length} bytes.");
+                    Log.Warning($"File at path '{filePath}' will be skipped since it's size is too small to transfer: {file.Length} bytes.");
                 }
 
-                Log.Information($"File size in bytes: {file.Length}");
+                Log.Debug($"File size in bytes: {file.Length}");
 
                 // assuming this file is valid to be copied and isn't going to be altered during the transfer, 
                 // then we can add it to the response here and copy it over

@@ -61,8 +61,8 @@ namespace FileCopy
             {
                 Log.Debug("Worker running at: {time}", DateTimeOffset.Now);
 
-                // wait 10 seconds before running again
-                await Task.Delay(1000, stoppingToken);
+                // wait 30 seconds before running again
+                await Task.Delay(30000, stoppingToken);
 
                 HashSet<string> filesToCopy = new HashSet<string>(FileCopyService.CheckFiles(_sourcePath, _destinationPath, _fileExtension));
 
