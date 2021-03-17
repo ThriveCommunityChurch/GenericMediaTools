@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace FileCopyServices
 {
@@ -92,21 +93,21 @@ namespace FileCopyServices
         /// <param name="filesToTransfer"></param>
         public static void CopyFiles(string destinationPath, IEnumerable<string> filesToTransfer)
         {
-            foreach (var filePath in filesToTransfer)
+            // do the transfer multithreaded
+            Parallel.ForEach(filesToTransfer, filePath =>
             {
                 var fileName = filePath.Split('\\').Last();
                 var newFilePath = $"{destinationPath}\\{fileName}";
-                
-                // this file already exists, and we aren't overwriting this file
-                if (File.Exists(newFilePath))
+
+                // only copy the file if it doesn't already exist
+                if (!File.Exists(newFilePath))
                 {
-                    continue;
+                    File.Copy(filePath, newFilePath);
+
+                    Log.Information($"Tranferred '{fileName}'");
                 }
+            });
 
-                File.Copy(filePath, newFilePath);
-
-                Log.Information($"Tranferred '{fileName}'");
-            }
         }
     }
 }
