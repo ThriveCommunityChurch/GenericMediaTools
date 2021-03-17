@@ -20,6 +20,11 @@ namespace FileCopy
         private static string _fileExtension;
 
         /// <summary>
+        /// Used to delete files after they've been successfully copied to the destination folder
+        /// </summary>
+        private static bool _deleteOnCopy;
+
+        /// <summary>
         /// File paths currently being transferred
         /// </summary>
         private static HashSet<string> _inProgressTransfers { get; set; } = new HashSet<string>();
@@ -48,6 +53,11 @@ namespace FileCopy
             _sourcePath = Configuration["SourcePath"];
             _destinationPath = Configuration["DestinationPath"];
             _fileExtension = Configuration["DesiredFileExtension"];
+
+            _ = bool.TryParse(Configuration["DeleteOnCopy"], out bool deleteOnCopy);
+
+            // TODO: Not currently supported
+            _deleteOnCopy = deleteOnCopy;
         }
 
         /// <summary>
@@ -60,9 +70,6 @@ namespace FileCopy
             while (!stoppingToken.IsCancellationRequested)
             {
                 Log.Debug("Worker running at: {time}", DateTimeOffset.Now);
-
-                // wait 30 seconds before running again
-                await Task.Delay(30000, stoppingToken);
 
                 HashSet<string> filesToCopy = new HashSet<string>(FileCopyService.CheckFiles(_sourcePath, _destinationPath, _fileExtension));
 
@@ -81,6 +88,9 @@ namespace FileCopy
                 {
                     Log.Debug($"Nothing to transfer.");
                 }
+
+                // wait 30 seconds before running again
+                await Task.Delay(30000, stoppingToken);
             }
         }
     }
