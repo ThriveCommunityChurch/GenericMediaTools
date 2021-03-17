@@ -79,7 +79,7 @@ namespace FileCopy
                 }
                 else
                 {
-                    Log.Information($"Nothing to transfer.");
+                    Log.Debug($"Nothing to transfer.");
                 }
             }
         }
