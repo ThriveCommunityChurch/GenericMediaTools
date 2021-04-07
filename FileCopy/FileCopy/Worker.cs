@@ -49,6 +49,8 @@ namespace FileCopy
 
             Log.Logger = logger;
 
+            Log.Warning("Application Started");
+
             // read the other settings from appsettings.json
             _sourcePath = Configuration["SourcePath"];
             _destinationPath = Configuration["DestinationPath"];
@@ -56,7 +58,6 @@ namespace FileCopy
 
             _ = bool.TryParse(Configuration["DeleteOnCopy"], out bool deleteOnCopy);
 
-            // TODO: Not currently supported
             _deleteOnCopy = deleteOnCopy;
         }
 
@@ -69,7 +70,7 @@ namespace FileCopy
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                Log.Debug("Worker running at: {time}", DateTimeOffset.Now);
+                Log.Information("Worker running at: {time}", DateTimeOffset.Now);
 
                 HashSet<string> filesToCopy = new HashSet<string>(FileCopyService.CheckFiles(_sourcePath, _destinationPath, _fileExtension));
 
@@ -83,6 +84,11 @@ namespace FileCopy
                 if (copiedFiles > 0)
                 {
                     Log.Information($"Successfully copied {copiedFiles} files.");
+
+                    if (_deleteOnCopy)
+                    {
+                        FileCopyService.DeleteOldFiles(filesToCopy);
+                    }
                 }
                 else
                 {

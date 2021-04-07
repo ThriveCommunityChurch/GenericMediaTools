@@ -86,7 +86,23 @@ namespace FileCopyServices
         }
 
         /// <summary>
-        /// Copies files from one folder to another, does NOT delete the file from the source folder after the copy has completed.
+        /// Optionally deletes any files that were successfully copied
+        /// </summary>
+        /// <param name="filesToCopy"></param>
+        public static void DeleteOldFiles(HashSet<string> filesToCopy)
+        {
+            // do the transfer multithreaded
+            Parallel.ForEach(filesToCopy, filePath =>
+            {
+                var fileName = filePath.Split('\\').Last();
+
+                File.Delete(filePath);
+                Log.Information($"Successfully deleted '{fileName}'");
+            });
+        }
+
+        /// <summary>
+        /// Copies files from one folder to another
         /// Files cannot be overwritten
         /// </summary>
         /// <param name="destinationPath"></param>

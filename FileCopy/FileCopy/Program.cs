@@ -18,9 +18,14 @@ namespace FileCopy
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .UseWindowsService()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // configure the app here.
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddHostedService<Worker>();
                 });
+
     }
 }
