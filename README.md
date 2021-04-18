@@ -1,7 +1,6 @@
-# GenericMediaTools
+# Generic Media Tools
 This repo contains several different media tools that we use to help automate jobs around the church.
 
-## Tools
 ### File Copy
 Used to autonomously copy raw recordings to the NAS at the conclusion of events.
 
