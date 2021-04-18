@@ -1,5 +1,5 @@
 # File Copy
-This tool is meant to be an automation tool for our video recording process that takes place multiple times each week. Currently we are using RoboCopy via Powershell in order to transfer raw recordings from OBS to the NAS. This tool will help prevent us from ever having to open Powershell since this should just run as a background task on the host machine (Windows). 
+This tool is meant to be an automation tool for our video recording process that takes place multiple times each week. Currently we are using [RoboCopy](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy) via Powershell in order to transfer raw recordings from OBS to the [NAS](https://en.wikipedia.org/wiki/Network-attached_storage). This tool will help prevent us from ever having to open Powershell since this should just run as a background task on the host machine (Windows). 
 
 ## Generic Requirements
 - Must be able to run silently in the background (no manual triggering should be required)
