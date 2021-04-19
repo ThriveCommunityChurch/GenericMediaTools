@@ -21,7 +21,7 @@ namespace FileCopyServices
             var files = Directory.GetFiles(folderPath);
             List<string> response = new List<string>();
 
-            foreach (string filePath in files)
+            Parallel.ForEach(files, filePath =>
             {
                 var fileName = filePath.Split('\\').Last();
                 var newFilePath = $"{destinationPath}\\{fileName}";
@@ -30,14 +30,14 @@ namespace FileCopyServices
                 {
                     // we're looking for files that have a certain extension, and this file is not the correct one
                     Log.Debug($"{fileName} is not the correct extension '{_fileExtension}'.");
-                    continue;
+                    return;
                 }
 
                 // this file already exists, and we aren't overwriting this file
                 if (File.Exists(newFilePath))
                 {
                     Log.Debug($"{fileName} already exists in the destination folder '{destinationPath}'.");
-                    continue;
+                    return;
                 }
 
                 FileAttributes attribute = File.GetAttributes(filePath);
@@ -45,61 +45,59 @@ namespace FileCopyServices
                 if (attribute.HasFlag(FileAttributes.Directory))
                 {
                     // We're skipping over folders, we only copy files
-                    continue;
+                    return;
                 }
 
                 if (attribute.HasFlag(FileAttributes.Hidden) || attribute.HasFlag(FileAttributes.System))
                 {
                     Log.Debug($"File at path '{filePath}' cannot be accessed.");
-                    continue;
+                    return;
                 }
-
-                FileStream file;
-
-                try
-                {
-                    file = File.OpenRead(filePath);
-                }
-                catch (Exception e)
-                {
-                    if (e.Message.Contains("being used by another process"))
-                    {
-                        Log.Debug($"The file {fileName} cannot be transferred at this time since it's in use by another process.");
-                    }
-
-                    continue;
-                }
-
-                if (file.Length == 0)
-                {
-                    Log.Warning($"File at path '{filePath}' will be skipped since it's size is too small to transfer: {file.Length} bytes.");
-                }
-
-                Log.Debug($"File size in bytes: {file.Length}");
 
                 // assuming this file is valid to be copied and isn't going to be altered during the transfer, 
                 // then we can add it to the response here and copy it over
                 response.Add(filePath);
-            }
+            });
 
             return response;
         }
 
         /// <summary>
-        /// Optionally deletes any files that were successfully copied
+        /// Move files from one folder to another
+        /// Files cannot be overwritten
         /// </summary>
-        /// <param name="filesToCopy"></param>
-        public static void DeleteOldFiles(HashSet<string> filesToCopy)
+        /// <param name="destinationPath"></param>
+        /// <param name="filesToTransfer"></param>
+        public static void MoveFiles(string destinationPath, IEnumerable<string> filesToTransfer)
         {
             // do the transfer multithreaded
-            Parallel.ForEach(filesToCopy, filePath =>
+            Parallel.ForEach(filesToTransfer, filePath =>
             {
                 var fileName = filePath.Split('\\').Last();
+                var newFilePath = $"{destinationPath}\\{fileName}";
 
-                File.Delete(filePath);
-                Log.Information($"Successfully deleted '{fileName}'");
+                // only copy the file if it doesn't already exist
+                if (!File.Exists(newFilePath))
+                {
+                    try
+                    {
+                        File.Move(filePath, newFilePath);
+
+                        Log.Information($"Tranferred '{fileName}'");
+                    }
+                    catch (Exception e)
+                    {
+                        if (e.Message.Contains("being used by another process"))
+                        {
+                            Log.Debug($"The file {fileName} cannot be transferred at this time since it's in use by another process.");
+                        }
+
+                        return;
+                    }
+                }
             });
         }
+    
 
         /// <summary>
         /// Copies files from one folder to another
@@ -118,9 +116,21 @@ namespace FileCopyServices
                 // only copy the file if it doesn't already exist
                 if (!File.Exists(newFilePath))
                 {
-                    File.Copy(filePath, newFilePath);
+                    try
+                    {
+                        File.Copy(filePath, newFilePath);
 
-                    Log.Information($"Tranferred '{fileName}'");
+                        Log.Information($"Tranferred '{fileName}'");
+                    }
+                    catch (Exception e)
+                    {
+                        if (e.Message.Contains("being used by another process"))
+                        {
+                            Log.Debug($"The file {fileName} cannot be transferred at this time since it's in use by another process.");
+                        }
+
+                        return;
+                    }
                 }
             });
 

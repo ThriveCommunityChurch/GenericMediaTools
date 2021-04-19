@@ -74,25 +74,30 @@ namespace FileCopy
 
                 HashSet<string> filesToCopy = new HashSet<string>(FileCopyService.CheckFiles(_sourcePath, _destinationPath, _fileExtension));
 
-                filesToCopy.ExceptWith(_inProgressTransfers);
-                _inProgressTransfers.UnionWith(filesToCopy);
-
-                FileCopyService.CopyFiles(_destinationPath, filesToCopy);
-                _inProgressTransfers.ExceptWith(filesToCopy);
-
-                int copiedFiles = filesToCopy.Count;
-                if (copiedFiles > 0)
+                if (!filesToCopy.Any())
                 {
-                    Log.Information($"Successfully copied {copiedFiles} files.");
-
-                    if (_deleteOnCopy)
-                    {
-                        FileCopyService.DeleteOldFiles(filesToCopy);
-                    }
+                    Log.Debug($"Nothing to transfer.");
                 }
                 else
                 {
-                    Log.Debug($"Nothing to transfer.");
+                    filesToCopy.ExceptWith(_inProgressTransfers);
+                    _inProgressTransfers.UnionWith(filesToCopy);
+
+                    // if we're "deleting" files AFTER they've been copied, we are effectively performing a Move
+                    if (_deleteOnCopy)
+                    {
+                        FileCopyService.MoveFiles(_destinationPath, filesToCopy);
+                    }
+                    else
+                    {
+                        FileCopyService.CopyFiles(_destinationPath, filesToCopy);
+                    }
+
+                    // Reset this list for the next iteration
+                    _inProgressTransfers.ExceptWith(filesToCopy);
+
+                    int copiedFiles = filesToCopy.Count;
+                    Log.Information($"Successfully {(_deleteOnCopy ? "moved" : "copied")} {copiedFiles} file(s).");
                 }
 
                 // wait 30 seconds before running again
