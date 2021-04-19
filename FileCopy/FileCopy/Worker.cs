@@ -20,6 +20,11 @@ namespace FileCopy
         private static string _fileExtension;
 
         /// <summary>
+        /// Used to delete files after they've been successfully copied to the destination folder
+        /// </summary>
+        private static bool _deleteOnCopy;
+
+        /// <summary>
         /// File paths currently being transferred
         /// </summary>
         private static HashSet<string> _inProgressTransfers { get; set; } = new HashSet<string>();
@@ -44,10 +49,16 @@ namespace FileCopy
 
             Log.Logger = logger;
 
+            Log.Warning("Application Started");
+
             // read the other settings from appsettings.json
             _sourcePath = Configuration["SourcePath"];
             _destinationPath = Configuration["DestinationPath"];
             _fileExtension = Configuration["DesiredFileExtension"];
+
+            _ = bool.TryParse(Configuration["DeleteOnCopy"], out bool deleteOnCopy);
+
+            _deleteOnCopy = deleteOnCopy;
         }
 
         /// <summary>
@@ -59,28 +70,38 @@ namespace FileCopy
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                Log.Debug("Worker running at: {time}", DateTimeOffset.Now);
-
-                // wait 30 seconds before running again
-                await Task.Delay(30000, stoppingToken);
+                Log.Information("Worker running at: {time}", DateTimeOffset.Now);
 
                 HashSet<string> filesToCopy = new HashSet<string>(FileCopyService.CheckFiles(_sourcePath, _destinationPath, _fileExtension));
 
-                filesToCopy.ExceptWith(_inProgressTransfers);
-                _inProgressTransfers.UnionWith(filesToCopy);
-
-                FileCopyService.CopyFiles(_destinationPath, filesToCopy);
-                _inProgressTransfers.ExceptWith(filesToCopy);
-
-                int copiedFiles = filesToCopy.Count;
-                if (copiedFiles > 0)
-                {
-                    Log.Information($"Successfully copied {copiedFiles} files.");
-                }
-                else
+                if (!filesToCopy.Any())
                 {
                     Log.Debug($"Nothing to transfer.");
                 }
+                else
+                {
+                    filesToCopy.ExceptWith(_inProgressTransfers);
+                    _inProgressTransfers.UnionWith(filesToCopy);
+
+                    // if we're "deleting" files AFTER they've been copied, we are effectively performing a Move
+                    if (_deleteOnCopy)
+                    {
+                        FileCopyService.MoveFiles(_destinationPath, filesToCopy);
+                    }
+                    else
+                    {
+                        FileCopyService.CopyFiles(_destinationPath, filesToCopy);
+                    }
+
+                    // Reset this list for the next iteration
+                    _inProgressTransfers.ExceptWith(filesToCopy);
+
+                    int copiedFiles = filesToCopy.Count;
+                    Log.Information($"Successfully {(_deleteOnCopy ? "moved" : "copied")} {copiedFiles} file(s).");
+                }
+
+                // wait 30 seconds before running again
+                await Task.Delay(30000, stoppingToken);
             }
         }
     }

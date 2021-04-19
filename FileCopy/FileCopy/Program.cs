@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 namespace FileCopy
 {
@@ -16,9 +17,15 @@ namespace FileCopy
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseWindowsService()
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    // configure the app here.
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddHostedService<Worker>();
                 });
+
     }
 }
