@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DupeCleaner": {
+      "commandName": "Project",
+      "commandLineArgs": "-p \"J:\\Thrive\""
+    }
+  }
+}
