@@ -87,9 +87,9 @@ jobs:
         }
 
         Write-Host "Final version: $VERSION"
-        echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
-        echo "PACKAGE_NAME=ThriveFileCopyInstaller-$VERSION" >> $env:GITHUB_OUTPUT
-        echo "Building version: $VERSION"
+        "VERSION=$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "PACKAGE_NAME=ThriveFileCopyInstaller-$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        Write-Host "Building version: $VERSION"
 
     - name: Update installer version
       run: |
@@ -118,15 +118,15 @@ jobs:
           $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
           if ($msiExists) {
             Write-Host "MSI installer built successfully"
-            echo "MSI_BUILT=true" >> $env:GITHUB_OUTPUT
+            "MSI_BUILT=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           } else {
             Write-Host "MSI file not found after build"
-            echo "MSI_BUILT=false" >> $env:GITHUB_OUTPUT
+            "MSI_BUILT=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           }
         } catch {
           Write-Host "MSI build failed: $($_.Exception.Message)"
           Write-Host "Will create PowerShell installer package instead"
-          echo "MSI_BUILT=false" >> $env:GITHUB_OUTPUT
+          "MSI_BUILT=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         }
       id: build_msi
 
@@ -207,8 +207,8 @@ jobs:
         For issues, check the log file or visit:
         https://github.com/ThriveCommunityChurch/GenericMediaTools
         "@ | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
-        
-        echo "PACKAGE_NAME=$packageName" >> $env:GITHUB_OUTPUT
+
+        "PACKAGE_NAME=$packageName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
