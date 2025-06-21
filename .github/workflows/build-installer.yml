@@ -34,11 +34,11 @@ jobs:
         wix extension add WixToolset.Util.wixext/4.0.5
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.PROJECT_PATH }}
+      run: dotnet restore ${{ env.PROJECT_PATH }}/FileCopy.csproj
 
     - name: Build service (Single File)
       run: |
-        dotnet publish ${{ env.PROJECT_PATH }} `
+        dotnet publish ${{ env.PROJECT_PATH }}/FileCopy.csproj `
           -c Release `
           -r win-x64 `
           --self-contained true `
