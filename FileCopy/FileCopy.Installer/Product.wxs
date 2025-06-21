@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Thrive FileCopy Service"
+           Language="1033"
+           Version="1.0.0.0"
+           Manufacturer="Thrive Community Church"
+           UpgradeCode="F47AC10B-58CC-4372-A567-0E02B2C3D479"
+           InstallerVersion="500"
+           Compressed="yes"
+           InstallScope="perMachine">
+
+    <SummaryInformation Description="Automatically moves OBS recording files to NAS storage" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Require Administrator privileges -->
+    <Property Id="ALLUSERS" Value="1" />
+
+    <!-- Note: Configuration is handled by the appsettings.json file -->
+    <!-- No custom properties needed since config file is copied as-is -->
+
+    <Feature Id="ProductFeature" Title="Thrive FileCopy Service" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="ServiceComponent" />
+      <ComponentRef Id="ConfigComponent" />
+      <ComponentRef Id="LogsDirectoryComponent" />
+    </Feature>
+  </Package>
+
+  <StandardDirectory Id="ProgramFilesFolder">
+    <Directory Id="CompanyFolder" Name="Thrive Community Church">
+      <Directory Id="INSTALLFOLDER" Name="FileCopy Service" />
+    </Directory>
+  </StandardDirectory>
+
+  <StandardDirectory Id="CommonAppDataFolder">
+    <Directory Id="LogsFolder" Name="logs">
+      <Directory Id="ThriveLogsFolder" Name="Thrive" />
+    </Directory>
+  </StandardDirectory>
+
+  <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+    <!-- Single-file executable contains all dependencies -->
+    <Component Id="FileCopyExecutable">
+      <File Source="$(var.FileCopy.TargetPath)" />
+    </Component>
+    <!-- Note: No separate DLL files needed for single-file deployment -->
+  </ComponentGroup>
+
+  <!-- Windows Service Component -->
+  <Component Id="ServiceComponent" Directory="INSTALLFOLDER">
+    <ServiceInstall Id="ThriveFileCopyService"
+                    Name="ThriveFileCopy"
+                    DisplayName="Thrive FileCopy Service"
+                    Description="Automatically moves OBS recording files to NAS storage"
+                    Type="ownProcess"
+                    Start="auto"
+                    Account="LocalSystem"
+                    ErrorControl="normal" />
+    <ServiceControl Id="ThriveFileCopyServiceControl"
+                    Name="ThriveFileCopy"
+                    Start="install"
+                    Stop="both"
+                    Remove="uninstall"
+                    Wait="yes" />
+  </Component>
+
+  <!-- Configuration File Component -->
+  <Component Id="ConfigComponent" Directory="INSTALLFOLDER">
+    <File Id="AppSettingsJson" Source="$(var.FileCopy.TargetDir)appsettings.json" />
+  </Component>
+
+  <!-- Create Logs Directory -->
+  <Component Id="LogsDirectoryComponent" Directory="ThriveLogsFolder">
+    <CreateFolder />
+  </Component>
+</Wix>

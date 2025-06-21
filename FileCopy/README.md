@@ -1,9 +1,60 @@
-# File Copy
-This tool is meant to be an automation tool for our video recording process that takes place multiple times each week. Currently we are using [RoboCopy](https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy) via Powershell in order to transfer raw recordings from [OBS](https://github.com/obsproject/obs-studio/) to the [NAS](https://en.wikipedia.org/wiki/Network-attached_storage). This tool will help prevent us from ever having to open Powershell since this should just run as a background task on the host machine (Windows). 
+# Thrive FileCopy Service
 
-## Generic Requirements
-- Must be able to run silently in the background (no manual triggering should be required)
-- Must be able to delete files _after_ they are successfully copied to the configured directory, in order to save space on the host machine
-- Must be able to log errors / informational messages to a log file that can be accessed later in the event an error occurs
-- Must be able to handle files that are being accessed by other processes (ie. during an OBS recording)
-- Should not run continuiously which would be a waste of system resources (CPU cycles), and should be able to be configured how often the process is fired.
+A lightweight Windows service that automatically moves OBS recording files (or really any file) from your local drive to network storage. This tool eliminates the need for manual file management and PowerShell scripts by running as a background service.
+
+## 🚀 Quick Start
+
+**Ready-to-use installer package:** `ThriveFileCopyInstaller-v1.0.0-SingleFile.zip`
+
+1. Extract the ZIP file
+2. Right-click `Install.bat` and select "Run as administrator"
+3. Done! The service starts automatically
+
+## ✨ Features
+
+- **Single File Deployment**: Just one 14MB executable - no DLL files!
+- **Auto-Configuration Detection**: Service automatically detects config changes
+- **File Lock Detection**: Won't interfere with OBS recording
+- **Smart Retry Logic**: Retries locked files after 5 minutes
+- **Size Filtering**: Only processes files ≥100MB (configurable)
+- **Comprehensive Logging**: Daily rotation with detailed troubleshooting
+- **Easy Configuration**: Interactive tools and command-line options
+- **Network Storage Support**: Works with mapped drives and UNC paths
+
+## Package Contents
+
+- **FileCopy.exe** - Single self-contained executable
+- **Install.bat** - One-click installer
+- **Configure.bat** - Easy configuration tool
+- **Comprehensive Documentation** - Step-by-step guides
+
+## 🔧 Configuration
+
+**Super Easy:** Right-click `Configure.bat` → "Run as administrator"
+
+**Configuration File:** `C:\Program Files\Thrive Community Church\FileCopy Service\appsettings.json`
+
+**Auto-Detection:** Service automatically detects config changes within 30 seconds
+
+## Monitoring
+
+- **Service Status**: `Get-Service ThriveFileCopy`
+- **Logs**: `C:\logs\Thrive\filecopy_log.txt`
+- **Live Monitoring**: `Get-Content "C:\logs\Thrive\filecopy_log.txt" -Wait -Tail 10`
+
+## Development
+
+The service is built with .NET 8.0 and includes:
+- **FileCopy** - Main service application
+- **FileCopyServices** - Core file processing logic
+- **FileCopy.Tests** - Unit tests
+- **FileCopy.Installer** - MSI installer project
+
+## 📋 Requirements Met
+
+- ✅ Runs silently in background (Windows service)
+- ✅ Deletes files after successful copy (configurable)
+- ✅ Comprehensive logging with rotation
+- ✅ Handles locked files (OBS recording detection)
+- ✅ Configurable check interval (default: 60 seconds)
+- ✅ Native C# implementation (no external robocopy dependency)
