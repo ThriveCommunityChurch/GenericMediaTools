@@ -135,6 +135,12 @@ jobs:
             Write-Host "MSI installer built successfully"
 
             # Code sign the MSI if certificate is available
+            Write-Host "Checking for code signing certificate..."
+            $certAvailable = $env:CODE_SIGNING_CERT_BASE64 -ne $null -and $env:CODE_SIGNING_CERT_BASE64 -ne ""
+            $passwordAvailable = $env:CODE_SIGNING_CERT_PASSWORD -ne $null -and $env:CODE_SIGNING_CERT_PASSWORD -ne ""
+            Write-Host "Certificate available: $certAvailable"
+            Write-Host "Password available: $passwordAvailable"
+
             if ($env:CODE_SIGNING_CERT_BASE64 -and $env:CODE_SIGNING_CERT_PASSWORD) {
               Write-Host "Code signing certificate found, signing MSI..."
               try {
@@ -178,6 +184,9 @@ jobs:
           "MSI_BUILT=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         }
       id: build_msi
+      env:
+        CODE_SIGNING_CERT_BASE64: ${{ secrets.CODE_SIGNING_CERT_BASE64 }}
+        CODE_SIGNING_CERT_PASSWORD: ${{ secrets.CODE_SIGNING_CERT_PASSWORD }}
 
     - name: Create release package
       run: |
