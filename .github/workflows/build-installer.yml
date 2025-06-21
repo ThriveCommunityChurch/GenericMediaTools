@@ -90,9 +90,22 @@ jobs:
         Write-Host "Using GitHub version: $githubVersion"
 
         $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
+        Write-Host "Before update - checking current version in $wxsPath:"
+        $beforeContent = Get-Content $wxsPath -Raw
+        if ($beforeContent -match 'Version="([^"]*)"') {
+          Write-Host "Current version: $($matches[1])"
+        }
+
         $content = Get-Content $wxsPath -Raw
         $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$wixVersion`""
         Set-Content $wxsPath $content
+
+        Write-Host "After update - verifying version was updated:"
+        $afterContent = Get-Content $wxsPath -Raw
+        if ($afterContent -match 'Version="([^"]*)"') {
+          Write-Host "New version: $($matches[1])"
+        }
+
         Write-Host "Updated installer version to: $wixVersion"
 
     - name: Build MSI installer
@@ -107,6 +120,14 @@ jobs:
 
           # Build the installer
           Write-Host "Building installer..."
+
+          # Verify version before build
+          Write-Host "Verifying version in Product.wxs before build:"
+          $wxsContent = Get-Content "Product.wxs" -Raw
+          if ($wxsContent -match 'Version="([^"]*)"') {
+            Write-Host "Product.wxs version before build: $($matches[1])"
+          }
+
           dotnet build -c Release
 
           $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
