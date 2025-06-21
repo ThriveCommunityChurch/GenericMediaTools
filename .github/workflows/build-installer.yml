@@ -79,12 +79,28 @@ jobs:
     - name: Build MSI installer
       run: |
         try {
+          Write-Host "Attempting to build MSI installer..."
           cd ${{ env.INSTALLER_PATH }}
+
+          # Try to restore first
+          Write-Host "Restoring installer project..."
+          dotnet restore
+
+          # Build the installer
+          Write-Host "Building installer..."
           dotnet build -c Release
+
           $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
-          echo "MSI_BUILT=$msiExists" >> $env:GITHUB_OUTPUT
+          if ($msiExists) {
+            Write-Host "MSI installer built successfully"
+            echo "MSI_BUILT=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "MSI file not found after build"
+            echo "MSI_BUILT=false" >> $env:GITHUB_OUTPUT
+          }
         } catch {
-          echo "MSI build failed, will create PowerShell installer package instead"
+          Write-Host "MSI build failed: $($_.Exception.Message)"
+          Write-Host "Will create PowerShell installer package instead"
           echo "MSI_BUILT=false" >> $env:GITHUB_OUTPUT
         }
       id: build_msi

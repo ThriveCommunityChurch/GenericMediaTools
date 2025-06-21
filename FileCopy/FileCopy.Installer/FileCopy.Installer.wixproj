@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="WiX.SDK/4.0.5">
+<Project Sdk="WixToolset.Sdk/4.0.5">
   <PropertyGroup>
     <OutputName>ThriveFileCopyInstaller</OutputName>
     <OutputType>Package</OutputType>
     <PlatformTarget>x64</PlatformTarget>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="WiX.Heat" Version="4.0.5" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.5" />
   </ItemGroup>
 
   <ItemGroup>
