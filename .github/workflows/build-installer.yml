@@ -49,57 +49,51 @@ jobs:
     - name: Get version info
       id: version
       run: |
-        # Get version from git tags or use MSI-compatible date-based version
-        try {
-          $tagVersion = git describe --tags --exact-match HEAD 2>$null
-          if ($tagVersion) {
-            $VERSION = $tagVersion
-          } else {
-            throw "No exact tag match"
-          }
-        } catch {
-          # Generate MSI-compatible version: YY.M.D.Build
-          $currentDate = Get-Date
-          $year = $currentDate.Year % 100  # Last 2 digits (25 for 2025)
-          $month = $currentDate.Month      # 1-12
-          $day = $currentDate.Day          # 1-31
+        # Generate separate versions for GitHub and WiX
+        $currentDate = Get-Date
+        $year = $currentDate.Year
+        $shortYear = $currentDate.Year % 100  # Last 2 digits (25 for 2025)
+        $month = $currentDate.Month
+        $day = $currentDate.Day
 
-          Write-Host "GitHub ref: ${{ github.ref }}"
-          Write-Host "GitHub run number: $env:GITHUB_RUN_NUMBER"
+        Write-Host "GitHub ref: ${{ github.ref }}"
+        Write-Host "GitHub run number: $env:GITHUB_RUN_NUMBER"
 
-          if ("${{ github.ref }}" -eq "refs/heads/master") {
-            $build = 0  # Release build (always 0)
-            $VERSION = "$year.$month.$day.$build"
-          } else {
-            # For dev builds, use GitHub run number as build iteration
-            $runNumber = $env:GITHUB_RUN_NUMBER
-            if (-not $runNumber) {
-              $runNumber = 1  # Fallback if run number is not available
-            }
-            $build = $runNumber
-            $VERSION = "$year.$month.$day.$build"
+        # GitHub version format: YYYY.MM.DD or YYYY.MM.DD-dev
+        if ("${{ github.ref }}" -eq "refs/heads/master") {
+          $GITHUB_VERSION = "$year.$month.$day"
+          $WIX_VERSION = "$shortYear.$month.$day.0"
+          Write-Host "Master branch - release versions"
+        } else {
+          $GITHUB_VERSION = "$year.$month.$day-dev"
+          $runNumber = $env:GITHUB_RUN_NUMBER
+          if (-not $runNumber) {
+            $runNumber = 1
           }
+          $WIX_VERSION = "$shortYear.$month.$day.$runNumber"
+          Write-Host "Dev branch - using run number: $runNumber"
         }
 
-        # Ensure VERSION is set
-        if (-not $VERSION) {
-          throw "VERSION variable is not set"
-        }
+        Write-Host "GitHub version: $GITHUB_VERSION"
+        Write-Host "WiX version: $WIX_VERSION"
 
-        Write-Host "Final version: $VERSION"
-        "VERSION=$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        "PACKAGE_NAME=ThriveFileCopyInstaller-$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        Write-Host "Building version: $VERSION"
+        # Write to GitHub output
+        "GITHUB_VERSION=$GITHUB_VERSION" >> $env:GITHUB_OUTPUT
+        "WIX_VERSION=$WIX_VERSION" >> $env:GITHUB_OUTPUT
+        "PACKAGE_NAME=ThriveFileCopyInstaller-$GITHUB_VERSION" >> $env:GITHUB_OUTPUT
 
     - name: Update installer version
       run: |
-        $version = "${{ steps.version.outputs.VERSION }}"
-        Write-Host "Using version: $version"
+        $wixVersion = "${{ steps.version.outputs.WIX_VERSION }}"
+        $githubVersion = "${{ steps.version.outputs.GITHUB_VERSION }}"
+        Write-Host "Using WiX version: $wixVersion"
+        Write-Host "Using GitHub version: $githubVersion"
 
         $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
         $content = Get-Content $wxsPath -Raw
-        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$version`""
+        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$wixVersion`""
         Set-Content $wxsPath $content
+        Write-Host "Updated installer version to: $wixVersion"
 
     - name: Build MSI installer
       run: |
@@ -132,8 +126,12 @@ jobs:
 
     - name: Create release package
       run: |
-        $version = "${{ steps.version.outputs.VERSION }}"
+        $githubVersion = "${{ steps.version.outputs.GITHUB_VERSION }}"
+        $wixVersion = "${{ steps.version.outputs.WIX_VERSION }}"
         $packageName = "${{ steps.version.outputs.PACKAGE_NAME }}"
+        Write-Host "GitHub version: $githubVersion"
+        Write-Host "WiX version: $wixVersion"
+        Write-Host "Package name: $packageName"
         
         # Create package directory
         New-Item -ItemType Directory -Path $packageName -Force
@@ -232,17 +230,17 @@ jobs:
       if: github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.version.outputs.VERSION }}
+        tag_name: ${{ steps.version.outputs.GITHUB_VERSION }}
         files: |
           ${{ steps.version.outputs.PACKAGE_NAME }}.zip
-        name: Thrive FileCopy Service ${{ steps.version.outputs.VERSION }}
+        name: Thrive FileCopy Service ${{ steps.version.outputs.GITHUB_VERSION }}
         body: |
-          ## Thrive FileCopy Service v${{ steps.version.outputs.VERSION }}
+          ## Thrive FileCopy Service v${{ steps.version.outputs.GITHUB_VERSION }}
           
           Automatically moves OBS recording files to NAS storage.
           
           ### 📦 Installation
-          1. Download and extract `ThriveFileCopyInstaller-v${{ steps.version.outputs.VERSION }}.zip`
+          1. Download and extract `ThriveFileCopyInstaller-${{ steps.version.outputs.GITHUB_VERSION }}.zip`
           2. Right-click `Install.bat` and select "Run as administrator"
           3. Follow the installation prompts
           4. Service starts automatically
@@ -270,6 +268,6 @@ jobs:
           ### 📖 Documentation
           See the included documentation files for detailed configuration and troubleshooting.
         draft: false
-        prerelease: ${{ !endsWith(steps.version.outputs.VERSION, '.0') }}
+        prerelease: ${{ contains(steps.version.outputs.GITHUB_VERSION, '-dev') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
