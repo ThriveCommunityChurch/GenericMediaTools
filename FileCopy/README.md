@@ -34,7 +34,7 @@ A lightweight Windows service that automatically moves OBS recording files (or r
 
 **Configuration File:** `C:\Program Files\Thrive Community Church\FileCopy Service\appsettings.json`
 
-**Auto-Detection:** Service automatically detects config changes within 30 seconds
+**Auto-Detection:** Service automatically detects config changes within 60 seconds
 
 ## Monitoring
 
