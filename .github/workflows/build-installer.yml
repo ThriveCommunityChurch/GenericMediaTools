@@ -71,9 +71,35 @@ jobs:
     - name: Update installer version
       run: |
         $version = "${{ steps.version.outputs.VERSION }}"
+        Write-Host "Original version: $version"
+
+        # Convert version to MSI-compatible format (Major.Minor.Build.Revision)
+        # Extract date and build info from version like "v2025.06.21-dev-8810fba"
+        if ($version -match "v?(\d{4})\.(\d{2})\.(\d{2})(?:-(.+))?") {
+          $year = [int]$matches[1] - 2024  # Make year relative to 2024 to keep it small
+          $month = [int]$matches[2]
+          $day = [int]$matches[3]
+          $prerelease = $matches[4]
+
+          # For prerelease (dev), use build number < 1000, for release use >= 1000
+          if ($prerelease -and $prerelease.StartsWith("dev")) {
+            $build = 500  # Prerelease build number
+          } else {
+            $build = 1000  # Release build number
+          }
+
+          # Create MSI-compatible version: Year.Month.Day.Build
+          $msiVersion = "$year.$month.$day.$build"
+        } else {
+          # Fallback to simple version
+          $msiVersion = "1.0.0.0"
+        }
+
+        Write-Host "MSI version: $msiVersion"
+
         $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
         $content = Get-Content $wxsPath -Raw
-        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$version.0`""
+        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$msiVersion`""
         Set-Content $wxsPath $content
 
     - name: Build MSI installer
