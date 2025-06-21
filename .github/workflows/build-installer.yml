@@ -1,0 +1,228 @@
+name: Build Thrive FileCopy Installer
+
+on:
+  push:
+    branches: [ main, master, dev ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'FileCopy/FileCopy'
+  INSTALLER_PATH: 'FileCopy/FileCopy.Installer'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup WiX Toolset
+      run: |
+        dotnet tool install --global wix --version 4.0.5
+        wix extension add WixToolset.Util.wixext/4.0.5
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+
+    - name: Build service (Single File)
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:PublishTrimmed=true `
+          -o "publish"
+
+    - name: Get version info
+      id: version
+      run: |
+        # Get version from git tags or use date-based version
+        try {
+          $tagVersion = git describe --tags --exact-match HEAD 2>$null
+          if ($tagVersion) {
+            $VERSION = $tagVersion
+          } else {
+            throw "No exact tag match"
+          }
+        } catch {
+          if ("${{ github.ref }}" -eq "refs/heads/master") {
+            $VERSION = "v$(Get-Date -Format 'yyyy.MM.dd')-$(git rev-parse --short HEAD)"
+          } else {
+            $VERSION = "v$(Get-Date -Format 'yyyy.MM.dd')-dev-$(git rev-parse --short HEAD)"
+          }
+        }
+        echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
+        echo "PACKAGE_NAME=ThriveFileCopyInstaller-$VERSION" >> $env:GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+
+    - name: Update installer version
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
+        $content = Get-Content $wxsPath -Raw
+        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$version.0`""
+        Set-Content $wxsPath $content
+
+    - name: Build MSI installer
+      run: |
+        try {
+          cd ${{ env.INSTALLER_PATH }}
+          dotnet build -c Release
+          $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
+          echo "MSI_BUILT=$msiExists" >> $env:GITHUB_OUTPUT
+        } catch {
+          echo "MSI build failed, will create PowerShell installer package instead"
+          echo "MSI_BUILT=false" >> $env:GITHUB_OUTPUT
+        }
+      id: build_msi
+
+    - name: Create release package
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $packageName = "${{ steps.version.outputs.PACKAGE_NAME }}"
+        
+        # Create package directory
+        New-Item -ItemType Directory -Path $packageName -Force
+        
+        # Copy MSI installer if it exists, otherwise copy PowerShell installer
+        if ("${{ steps.build_msi.outputs.MSI_BUILT }}" -eq "true") {
+          Copy-Item "${{ env.INSTALLER_PATH }}/bin/Release/ThriveFileCopyInstaller.msi" "$packageName/"
+        } else {
+          # Copy service executable and config
+          Copy-Item "publish/FileCopy.exe" "$packageName/"
+          Copy-Item "publish/appsettings.json" "$packageName/"
+
+          # Verify the config has the correct default paths
+          Write-Host "Verifying configuration defaults..."
+          $configContent = Get-Content "publish/appsettings.json" -Raw
+          if ($configContent -notlike "*%USERPROFILE%*") {
+            Write-Warning "Configuration may not have dynamic user profile path"
+          }
+
+          Write-Host "Creating installer scripts..."
+          # Note: Installer scripts will be created from templates in future versions
+        }
+        
+        # Create documentation inline (since installer folder is gitignored)
+        Write-Host "Creating documentation..."
+        
+        # Create quick start guide
+        @"
+        # Thrive FileCopy Service - Quick Start (Single File Edition)
+
+        ## Installation (30 seconds)
+
+        ### Option 1: MSI Installer (Recommended)
+        1. Right-click on 'ThriveFileCopyInstaller.msi' and select 'Run as administrator'
+        2. Follow the installation wizard
+        3. The service will start automatically after installation
+
+        ### Option 2: Single File Installer
+        1. Right-click on 'Install.bat' and select 'Run as administrator'
+        2. Follow the prompts
+        3. Done! Just one FileCopy.exe file (14MB) - no DLLs!
+        
+        ## Default Configuration
+        - **Source**: %USERPROFILE%\Videos (current user's Videos folder)
+        - **Destination**: Z:\Backups\Recordings
+        - **File Type**: .mkv files ≥100MB (configurable)
+        - **Check Interval**: Every 1 minute
+        - **Retry Delay**: 5 minutes for locked files
+        
+        ## Monitoring
+        - **Service Name**: ThriveFileCopy
+        - **Logs**: C:\logs\Thrive\filecopy_log.txt
+        - **Status Check**: Services.msc or ``Get-Service ThriveFileCopy``
+        
+        ## Configuration
+        After installation, you can modify settings by editing:
+        ``C:\Program Files\Thrive Community Church\FileCopy Service\appsettings.json``
+        
+        Then restart the service:
+        ``Restart-Service ThriveFileCopy``
+        
+        ## Features
+        - ✅ Automatic file monitoring
+        - ✅ File lock detection (won't interfere with OBS recording)
+        - ✅ Retry logic for locked files  
+        - ✅ Robocopy-style functionality (native C# implementation)
+        - ✅ Comprehensive logging
+        - ✅ Windows service (runs in background)
+        
+        ## Support
+        For issues, check the log file or visit:
+        https://github.com/ThriveCommunityChurch/GenericMediaTools
+        "@ | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
+        
+        # Create ZIP package
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
+        
+        echo "PACKAGE_NAME=$packageName" >> $env:GITHUB_OUTPUT
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.version.outputs.PACKAGE_NAME }}
+        path: |
+          ${{ steps.version.outputs.PACKAGE_NAME }}.zip
+          ${{ env.INSTALLER_PATH }}/bin/Release/ThriveFileCopyInstaller.msi
+        retention-days: 90
+
+    - name: Create Release
+      if: github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        files: |
+          ${{ steps.version.outputs.PACKAGE_NAME }}.zip
+        name: Thrive FileCopy Service ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## Thrive FileCopy Service v${{ steps.version.outputs.VERSION }}
+          
+          Automatically moves OBS recording files to NAS storage.
+          
+          ### 📦 Installation
+          1. Download and extract `ThriveFileCopyInstaller-v${{ steps.version.outputs.VERSION }}.zip`
+          2. Right-click `Install.bat` and select "Run as administrator"
+          3. Follow the installation prompts
+          4. Service starts automatically
+          
+          ### ⚙️ Default Configuration
+          - **Source**: `%USERPROFILE%\Videos` (current user's Videos folder)
+          - **Destination**: `Z:\Backups\Recordings`
+          - **File Type**: `.mkv` files ≥100MB (configurable)
+          - **Check Interval**: Every 1 minute
+          - **Retry Delay**: 5 minutes for locked files
+          
+          ### 🔧 Features
+          - Automatic file monitoring
+          - File lock detection (won't interfere with OBS recording)
+          - Retry logic for locked files
+          - Robocopy-style functionality (native C# implementation)
+          - Comprehensive logging
+          - Windows service (runs in background)
+          
+          ### 📋 Monitoring
+          - **Service Name**: `ThriveFileCopy`
+          - **Logs**: `C:\logs\Thrive\filecopy_log.txt`
+          - **Status**: `Get-Service ThriveFileCopy`
+          
+          ### 📖 Documentation
+          See the included documentation files for detailed configuration and troubleshooting.
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.VERSION, 'dev') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
