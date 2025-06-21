@@ -49,7 +49,7 @@ jobs:
     - name: Get version info
       id: version
       run: |
-        # Get version from git tags or use date-based version
+        # Get version from git tags or use MSI-compatible date-based version
         try {
           $tagVersion = git describe --tags --exact-match HEAD 2>$null
           if ($tagVersion) {
@@ -58,10 +58,19 @@ jobs:
             throw "No exact tag match"
           }
         } catch {
+          # Generate MSI-compatible version: YY.M.D.Build
+          $currentDate = Get-Date
+          $year = $currentDate.Year % 100  # Last 2 digits (25 for 2025)
+          $month = $currentDate.Month      # 1-12
+          $day = $currentDate.Day          # 1-31
+
           if ("${{ github.ref }}" -eq "refs/heads/master") {
-            $VERSION = "v$(Get-Date -Format 'yyyy.MM.dd')-$(git rev-parse --short HEAD)"
+            $build = 0  # Release build (always 0)
+            $VERSION = "$year.$month.$day.$build"
           } else {
-            $VERSION = "v$(Get-Date -Format 'yyyy.MM.dd')-dev-$(git rev-parse --short HEAD)"
+            # For dev builds, use GitHub run number as build iteration
+            $build = $env:GITHUB_RUN_NUMBER
+            $VERSION = "$year.$month.$day.$build"
           }
         }
         echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
@@ -71,35 +80,11 @@ jobs:
     - name: Update installer version
       run: |
         $version = "${{ steps.version.outputs.VERSION }}"
-        Write-Host "Original version: $version"
-
-        # Convert version to MSI-compatible format (Major.Minor.Build.Revision)
-        # Extract date and build info from version like "v2025.06.21-dev-8810fba"
-        if ($version -match "v?(\d{4})\.(\d{2})\.(\d{2})(?:-(.+))?") {
-          $year = [int]$matches[1] - 2024  # Make year relative to 2024 to keep it small
-          $month = [int]$matches[2]
-          $day = [int]$matches[3]
-          $prerelease = $matches[4]
-
-          # For prerelease (dev), use build number < 1000, for release use >= 1000
-          if ($prerelease -and $prerelease.StartsWith("dev")) {
-            $build = 500  # Prerelease build number
-          } else {
-            $build = 1000  # Release build number
-          }
-
-          # Create MSI-compatible version: Year.Month.Day.Build
-          $msiVersion = "$year.$month.$day.$build"
-        } else {
-          # Fallback to simple version
-          $msiVersion = "1.0.0.0"
-        }
-
-        Write-Host "MSI version: $msiVersion"
+        Write-Host "Using version: $version"
 
         $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
         $content = Get-Content $wxsPath -Raw
-        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$msiVersion`""
+        $content = $content -replace 'Version="1\.0\.0\.0"', "Version=`"$version`""
         Set-Content $wxsPath $content
 
     - name: Build MSI installer
@@ -265,6 +250,6 @@ jobs:
           ### 📖 Documentation
           See the included documentation files for detailed configuration and troubleshooting.
         draft: false
-        prerelease: ${{ contains(steps.version.outputs.VERSION, 'dev') }}
+        prerelease: ${{ !endsWith(steps.version.outputs.VERSION, '.0') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
