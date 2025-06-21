@@ -133,10 +133,44 @@ jobs:
           $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
           if ($msiExists) {
             Write-Host "MSI installer built successfully"
+
+            # Code sign the MSI if certificate is available
+            if ($env:CODE_SIGNING_CERT_BASE64 -and $env:CODE_SIGNING_CERT_PASSWORD) {
+              Write-Host "Code signing certificate found, signing MSI..."
+              try {
+                # Decode certificate from base64
+                $certBytes = [Convert]::FromBase64String($env:CODE_SIGNING_CERT_BASE64)
+                $certPath = "temp_cert.p12"
+                [System.IO.File]::WriteAllBytes($certPath, $certBytes)
+
+                # Sign the MSI
+                $msiPath = "bin/Release/ThriveFileCopyInstaller.msi"
+                $signResult = & signtool sign /f $certPath /p $env:CODE_SIGNING_CERT_PASSWORD /t http://timestamp.digicert.com /fd SHA256 /v $msiPath
+
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "MSI signed successfully"
+                  "MSI_SIGNED=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                } else {
+                  Write-Host "MSI signing failed: $signResult"
+                  "MSI_SIGNED=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                }
+
+                # Clean up certificate file
+                Remove-Item $certPath -Force -ErrorAction SilentlyContinue
+              } catch {
+                Write-Host "Code signing error: $($_.Exception.Message)"
+                "MSI_SIGNED=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+              }
+            } else {
+              Write-Host "No code signing certificate configured - MSI will show 'Unknown Publisher'"
+              "MSI_SIGNED=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            }
+
             "MSI_BUILT=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           } else {
             Write-Host "MSI file not found after build"
             "MSI_BUILT=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "MSI_SIGNED=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           }
         } catch {
           Write-Host "MSI build failed: $($_.Exception.Message)"
