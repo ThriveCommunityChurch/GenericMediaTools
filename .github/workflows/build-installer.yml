@@ -90,7 +90,7 @@ jobs:
         Write-Host "Using GitHub version: $githubVersion"
 
         $wxsPath = "${{ env.INSTALLER_PATH }}/Product.wxs"
-        Write-Host "Before update - checking current version in $wxsPath:"
+        Write-Host "Before update - checking current version in ${wxsPath}:"
         $beforeContent = Get-Content $wxsPath -Raw
         if ($beforeContent -match 'Version="([^"]*)"') {
           Write-Host "Current version: $($matches[1])"
