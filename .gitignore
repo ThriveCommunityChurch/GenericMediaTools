@@ -413,6 +413,7 @@ $RECYCLE.BIN/
 *.cab
 *.msm
 *.msp
+*.msi
 *.dll
 *.exe
 *.zip
@@ -435,3 +436,8 @@ $RECYCLE.BIN/
 
 # installer Runs
 **/ThriveFileCopyInstaller*/
+
+#Certs
+*.p12
+*.pfx
+*.cer

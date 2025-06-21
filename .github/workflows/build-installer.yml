@@ -220,9 +220,10 @@ jobs:
         ## Installation (30 seconds)
 
         ### Option 1: MSI Installer (Recommended)
-        1. Right-click on 'ThriveFileCopyInstaller.msi' and select 'Run as administrator'
-        2. Follow the installation wizard
-        3. The service will start automatically after installation
+        1. Double-click on 'ThriveFileCopyInstaller.msi' (will automatically request admin privileges)
+        2. Click 'Yes' when Windows asks for administrator permission
+        3. Follow the installation wizard
+        4. The service will start automatically after installation
 
         ### Option 2: Single File Installer
         1. Right-click on 'Install.bat' and select 'Run as administrator'
