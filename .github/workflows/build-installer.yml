@@ -64,15 +64,29 @@ jobs:
           $month = $currentDate.Month      # 1-12
           $day = $currentDate.Day          # 1-31
 
+          Write-Host "GitHub ref: ${{ github.ref }}"
+          Write-Host "GitHub run number: $env:GITHUB_RUN_NUMBER"
+
           if ("${{ github.ref }}" -eq "refs/heads/master") {
             $build = 0  # Release build (always 0)
             $VERSION = "$year.$month.$day.$build"
           } else {
             # For dev builds, use GitHub run number as build iteration
-            $build = $env:GITHUB_RUN_NUMBER
+            $runNumber = $env:GITHUB_RUN_NUMBER
+            if (-not $runNumber) {
+              $runNumber = 1  # Fallback if run number is not available
+            }
+            $build = $runNumber
             $VERSION = "$year.$month.$day.$build"
           }
         }
+
+        # Ensure VERSION is set
+        if (-not $VERSION) {
+          throw "VERSION variable is not set"
+        }
+
+        Write-Host "Final version: $VERSION"
         echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
         echo "PACKAGE_NAME=ThriveFileCopyInstaller-$VERSION" >> $env:GITHUB_OUTPUT
         echo "Building version: $VERSION"
@@ -194,9 +208,6 @@ jobs:
         https://github.com/ThriveCommunityChurch/GenericMediaTools
         "@ | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
         
-        # Create ZIP package
-        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
-        
         echo "PACKAGE_NAME=$packageName" >> $env:GITHUB_OUTPUT
 
     - name: Upload build artifacts
@@ -204,9 +215,18 @@ jobs:
       with:
         name: ${{ steps.version.outputs.PACKAGE_NAME }}
         path: |
-          ${{ steps.version.outputs.PACKAGE_NAME }}.zip
-          ${{ env.INSTALLER_PATH }}/bin/Release/ThriveFileCopyInstaller.msi
+          ${{ steps.version.outputs.PACKAGE_NAME }}/ThriveFileCopyInstaller.msi
+          ${{ steps.version.outputs.PACKAGE_NAME }}/FileCopy.exe
+          ${{ steps.version.outputs.PACKAGE_NAME }}/appsettings.json
+          ${{ steps.version.outputs.PACKAGE_NAME }}/QUICK_START.md
         retention-days: 90
+
+    - name: Create release ZIP
+      if: github.ref == 'refs/heads/master'
+      run: |
+        $packageName = "${{ steps.version.outputs.PACKAGE_NAME }}"
+        # Create ZIP package for release
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip"
 
     - name: Create Release
       if: github.ref == 'refs/heads/master'
