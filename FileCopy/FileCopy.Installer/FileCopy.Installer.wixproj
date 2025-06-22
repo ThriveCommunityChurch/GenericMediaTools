@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="WixToolset.Util.wixext" Version="4.0.5" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +17,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FileCopy\FileCopy.csproj" />
+    <ProjectReference Include="..\FileCopy\FileCopy.csproj">
+      <SetTargetFramework>TargetFramework=net8.0</SetTargetFramework>
+      <PublishProfile>FolderProfile</PublishProfile>
+    </ProjectReference>
   </ItemGroup>
+
+  <Target Name="PublishServiceBeforeBuild" BeforeTargets="Build">
+    <MSBuild Projects="..\FileCopy\FileCopy.csproj"
+             Targets="Publish"
+             Properties="PublishDir=$(MSBuildThisFileDirectory)publish-output\;Configuration=$(Configuration);RuntimeIdentifier=win-x64;PublishSingleFile=true;SelfContained=true" />
+  </Target>
 </Project>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Thrive FileCopy Service"
            Language="1033"
            Version="1.0.0.0"
@@ -17,8 +18,18 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Note: Configuration is handled by the appsettings.json file -->
-    <!-- No custom properties needed since config file is copied as-is -->
+    <!-- Service Account Properties with defaults -->
+    <Property Id="SERVICEUSER" Secure="yes" />
+    <Property Id="SERVICEPASSWORD" Secure="yes" Hidden="yes" />
+
+    <!-- UI for installation with custom license -->
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
+    <!-- Custom Product Icon (when you add icon.ico file) -->
+    <!-- <Icon Id="ProductIcon" SourceFile="icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" /> -->
 
     <Feature Id="ProductFeature" Title="Thrive FileCopy Service" Level="1">
       <ComponentGroupRef Id="ProductComponents" />
@@ -26,7 +37,7 @@
       <ComponentRef Id="LogsDirectoryComponent" />
     </Feature>
 
-    <StandardDirectory Id="ProgramFilesFolder">
+    <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="CompanyFolder" Name="Thrive Community Church">
         <Directory Id="INSTALLFOLDER" Name="FileCopy Service" />
       </Directory>
@@ -41,28 +52,28 @@
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <!-- Windows Service Component with executable -->
       <Component Id="ServiceComponent" Guid="82d2c7b5-3179-4b1f-84c8-abf309e44839">
-        <File Id="ServiceExecutable" Source="$(var.FileCopy.TargetPath)" KeyPath="yes" />
+        <File Id="ServiceExecutable" Source="publish-output\FileCopy.exe" KeyPath="yes" />
         <ServiceInstall Id="ThriveFileCopyService"
                         Name="ThriveFileCopy"
                         DisplayName="Thrive FileCopy Service"
                         Description="Automatically moves OBS recording files to NAS storage"
                         Type="ownProcess"
                         Start="auto"
-                        Account="User"
+                        Account="LocalSystem"
                         ErrorControl="normal" />
         <ServiceControl Id="ThriveFileCopyServiceControl"
                         Name="ThriveFileCopy"
-                        Start="install"
+                        Start="demand"
                         Stop="both"
                         Remove="uninstall"
-                        Wait="yes" />
+                        Wait="no" />
       </Component>
       <!-- Note: Single-file executable contains all dependencies -->
     </ComponentGroup>
 
     <!-- Configuration File Component -->
     <Component Id="ConfigComponent" Directory="INSTALLFOLDER">
-      <File Id="AppSettingsJson" Source="$(var.FileCopy.TargetDir)appsettings.json" />
+      <File Id="AppSettingsJson" Source="publish-output\appsettings.json" />
     </Component>
 
     <!-- Create Logs Directory -->
