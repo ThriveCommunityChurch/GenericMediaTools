@@ -73,15 +73,18 @@ namespace FileCopy
         {
             try
             {
+                // Use AppContext.BaseDirectory for single-file apps to find config in executable directory
+                var exeDirectory = AppContext.BaseDirectory;
+
                 var builder = new ConfigurationBuilder()
-                   .SetBasePath(Directory.GetCurrentDirectory())
+                   .SetBasePath(exeDirectory)
                    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
                 builder.AddEnvironmentVariables();
                 Configuration = builder.Build();
 
                 var serilogSettings = new ConfigurationBuilder()
-                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .SetBasePath(exeDirectory)
                     .AddJsonFile("appsettings.json")
                     .Build();
 
@@ -94,7 +97,9 @@ namespace FileCopy
                 Log.Information("FileCopy service initializing...");
 
                 // read the other settings from appsettings.json
-                _sourcePath = ExpandEnvironmentVariablesIfNeeded(Configuration["SourcePath"]);
+                // TODO: Temporarily commented out for LocalSystem testing - uncomment when using user accounts
+                // _sourcePath = ExpandEnvironmentVariablesIfNeeded(Configuration["SourcePath"]);
+                _sourcePath = Configuration["SourcePath"]; // Use raw path for LocalSystem testing
                 _destinationPath = Configuration["DestinationPath"]; // Keep destination path as-is (no env var expansion)
                 _fileExtension = Configuration["DesiredFileExtension"];
 
@@ -148,7 +153,9 @@ namespace FileCopy
                 // Force configuration reload
                 Configuration.Reload();
 
-                var newSourcePath = ExpandEnvironmentVariablesIfNeeded(Configuration["SourcePath"]);
+                // TODO: Temporarily commented out for LocalSystem testing - uncomment when using user accounts
+                // var newSourcePath = ExpandEnvironmentVariablesIfNeeded(Configuration["SourcePath"]);
+                var newSourcePath = Configuration["SourcePath"]; // Use raw path for LocalSystem testing
                 var newDestinationPath = Configuration["DestinationPath"]; // Keep destination path as-is (no env var expansion)
                 var newFileExtension = Configuration["DesiredFileExtension"];
                 _ = bool.TryParse(Configuration["DeleteOnCopy"], out bool newDeleteOnCopy);
@@ -237,7 +244,7 @@ namespace FileCopy
                     // Check for configuration changes every 30 seconds
                     if (DateTime.Now.Subtract(_lastConfigLoad).TotalSeconds > 30)
                     {
-                        var configFile = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+                        var configFile = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
                         if (File.Exists(configFile))
                         {
                             var lastWriteTime = File.GetLastWriteTime(configFile);

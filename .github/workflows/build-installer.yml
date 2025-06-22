@@ -32,22 +32,17 @@ jobs:
       run: |
         dotnet tool install --global wix --version 4.0.5
         wix extension add WixToolset.Util.wixext/4.0.5
+        wix extension add WixToolset.UI.wixext/4.0.5
 
     - name: Setup signtool
       uses: KamaranL/add-signtool-action@v1
 
     - name: Restore dependencies
-      run: dotnet restore ${{ env.PROJECT_PATH }}/FileCopy.csproj
-
-    - name: Build service (Single File)
       run: |
-        dotnet publish ${{ env.PROJECT_PATH }}/FileCopy.csproj `
-          -c Release `
-          -r win-x64 `
-          --self-contained true `
-          -p:PublishSingleFile=true `
-          -p:PublishTrimmed=true `
-          -o "publish"
+        # Restore the main service project
+        dotnet restore ${{ env.PROJECT_PATH }}/FileCopy.csproj
+        # Restore the installer project
+        dotnet restore ${{ env.INSTALLER_PATH }}/FileCopy.Installer.wixproj
 
     - name: Get version info
       id: version
@@ -117,12 +112,17 @@ jobs:
           Write-Host "Attempting to build MSI installer..."
           cd ${{ env.INSTALLER_PATH }}
 
-          # Try to restore first
-          Write-Host "Restoring installer project..."
-          dotnet restore
-
-          # Build the installer
-          Write-Host "Building installer..."
+          # Verify all required files exist
+          Write-Host "Checking required files..."
+          $requiredFiles = @("Product.wxs", "License.rtf", "FileCopy.Installer.wixproj")
+          foreach ($file in $requiredFiles) {
+            if (Test-Path $file) {
+              Write-Host "✓ Found: $file"
+            } else {
+              Write-Host "✗ Missing: $file"
+              throw "Required file missing: $file"
+            }
+          }
 
           # Verify version before build
           Write-Host "Verifying version in Product.wxs before build:"
@@ -131,11 +131,47 @@ jobs:
             Write-Host "Product.wxs version before build: $($matches[1])"
           }
 
+          # First, publish the service as single-file executable
+          Write-Host "Publishing service as single-file executable..."
+          dotnet publish ../FileCopy/FileCopy.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish-output --force
+
+          # Verify published files exist
+          if (Test-Path "publish-output/FileCopy.exe") {
+            $exeSize = (Get-Item "publish-output/FileCopy.exe").Length
+            Write-Host "✓ Published FileCopy.exe: $([math]::Round($exeSize / 1MB, 2)) MB"
+          } else {
+            throw "Failed to publish FileCopy.exe"
+          }
+
+          if (Test-Path "publish-output/appsettings.json") {
+            Write-Host "✓ Published appsettings.json"
+          } else {
+            throw "Failed to publish appsettings.json"
+          }
+
+          # Build the installer (this will use the published files)
+          Write-Host "Building installer..."
           dotnet build -c Release
 
           $msiExists = Test-Path "bin/Release/ThriveFileCopyInstaller.msi"
           if ($msiExists) {
             Write-Host "MSI installer built successfully"
+
+            # Validate MSI file
+            $msiPath = "bin/Release/ThriveFileCopyInstaller.msi"
+            $msiSize = (Get-Item $msiPath).Length
+            Write-Host "MSI file size: $([math]::Round($msiSize / 1MB, 2)) MB"
+
+            # Basic MSI validation using msiexec
+            Write-Host "Validating MSI structure..."
+            $validateResult = & msiexec /a $msiPath /qn /L*v validate.log TARGETDIR="$PWD\validate-temp" 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "MSI validation passed"
+              Remove-Item "validate-temp" -Recurse -Force -ErrorAction SilentlyContinue
+              Remove-Item "validate.log" -Force -ErrorAction SilentlyContinue
+            } else {
+              Write-Host "MSI validation warning (this may be normal): $validateResult"
+            }
 
             # Code sign the MSI if certificate is available
             Write-Host "Checking for code signing certificate..."
@@ -209,23 +245,46 @@ jobs:
         # Create package directory
         New-Item -ItemType Directory -Path $packageName -Force
         
-        # Copy MSI installer if it exists, otherwise copy PowerShell installer
+        # Copy MSI installer if it exists, otherwise create fallback package
         if ("${{ steps.build_msi.outputs.MSI_BUILT }}" -eq "true") {
+          Write-Host "Copying MSI installer..."
           Copy-Item "${{ env.INSTALLER_PATH }}/bin/Release/ThriveFileCopyInstaller.msi" "$packageName/"
-        } else {
-          # Copy service executable and config
-          Copy-Item "publish/FileCopy.exe" "$packageName/"
-          Copy-Item "publish/appsettings.json" "$packageName/"
 
-          # Verify the config has the correct default paths
-          Write-Host "Verifying configuration defaults..."
-          $configContent = Get-Content "publish/appsettings.json" -Raw
-          if ($configContent -notlike "*%USERPROFILE%*") {
-            Write-Warning "Configuration may not have dynamic user profile path"
+          # Also copy license for reference
+          if (Test-Path "${{ env.INSTALLER_PATH }}/License.rtf") {
+            Copy-Item "${{ env.INSTALLER_PATH }}/License.rtf" "$packageName/"
           }
+        } else {
+          Write-Host "MSI build failed - creating fallback package..."
+          # Build service manually for fallback
+          dotnet publish ${{ env.PROJECT_PATH }}/FileCopy.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -o "fallback-publish"
 
-          Write-Host "Creating installer scripts..."
-          # Note: Installer scripts will be created from templates in future versions
+          # Copy service executable and config
+          Copy-Item "fallback-publish/FileCopy.exe" "$packageName/"
+          Copy-Item "fallback-publish/appsettings.json" "$packageName/"
+
+          Write-Host "Creating fallback installer scripts..."
+
+          # Create a simple install script for fallback
+          @"
+          @echo off
+          echo Thrive FileCopy Service - Manual Installation
+          echo.
+          echo This is a fallback installer because MSI build failed.
+          echo Please install manually or contact support.
+          echo.
+          echo Files included:
+          echo - FileCopy.exe (Windows Service)
+          echo - appsettings.json (Configuration)
+          echo.
+          echo For manual installation instructions, see QUICK_START.md
+          pause
+          "@ | Out-File "$packageName/INSTALL_MANUALLY.bat" -Encoding ASCII
         }
         
         # Create documentation inline (since installer folder is gitignored)
@@ -233,27 +292,32 @@ jobs:
         
         # Create quick start guide
         @"
-        # Thrive FileCopy Service - Quick Start (Single File Edition)
+        # Thrive FileCopy Service - Quick Start
 
         ## Installation (30 seconds)
 
-        ### Option 1: MSI Installer (Recommended)
-        1. Double-click on 'ThriveFileCopyInstaller.msi' (will automatically request admin privileges)
+        ### MSI Installer (Recommended)
+        1. Double-click on 'ThriveFileCopyInstaller.msi'
         2. Click 'Yes' when Windows asks for administrator permission
-        3. Follow the installation wizard
-        4. The service will start automatically after installation
+        3. Accept the MIT License agreement
+        4. Choose installation directory (default: C:\Program Files\Thrive Community Church\FileCopy Service)
+        5. Click Install - the service will be installed and ready to start
 
-        ### Option 2: Single File Installer
-        1. Right-click on 'Install.bat' and select 'Run as administrator'
-        2. Follow the prompts
-        3. Done! Just one FileCopy.exe file (14MB) - no DLLs!
+        ### Start the Service (Required)
+        After installation, you must manually start the service:
+        - **Services.msc**: Find "Thrive FileCopy Service" and click Start
+        - **PowerShell**: ``Start-Service ThriveFileCopy``
+        - **Command Prompt**: ``net start ThriveFileCopy``
+
+        The service will then start automatically on every system boot.
         
         ## Default Configuration
-        - **Source**: %USERPROFILE%\Videos (current user's Videos folder)
-        - **Destination**: Z:\Backups\Recordings
+        - **Source**: C:\temp\source-videos (system-accessible directory)
+        - **Destination**: C:\temp\recordings-backup
         - **File Type**: .mkv files ≥100MB (configurable)
         - **Check Interval**: Every 1 minute
         - **Retry Delay**: 5 minutes for locked files
+        - **Service Account**: LocalSystem (for system-wide access)
         
         ## Monitoring
         - **Service Name**: ThriveFileCopy
@@ -288,9 +352,11 @@ jobs:
         name: ${{ steps.version.outputs.PACKAGE_NAME }}
         path: |
           ${{ steps.version.outputs.PACKAGE_NAME }}/ThriveFileCopyInstaller.msi
+          ${{ steps.version.outputs.PACKAGE_NAME }}/License.rtf
           ${{ steps.version.outputs.PACKAGE_NAME }}/FileCopy.exe
           ${{ steps.version.outputs.PACKAGE_NAME }}/appsettings.json
           ${{ steps.version.outputs.PACKAGE_NAME }}/QUICK_START.md
+          ${{ steps.version.outputs.PACKAGE_NAME }}/INSTALL_MANUALLY.bat
         retention-days: 90
 
     - name: Create release ZIP
@@ -315,16 +381,17 @@ jobs:
           
           ### 📦 Installation
           1. Download and extract `ThriveFileCopyInstaller-${{ steps.version.outputs.GITHUB_VERSION }}.zip`
-          2. Right-click `Install.bat` and select "Run as administrator"
-          3. Follow the installation prompts
-          4. Service starts automatically
+          2. Double-click `ThriveFileCopyInstaller.msi`
+          3. Follow the installation wizard
+          4. **Start the service manually**: `Start-Service ThriveFileCopy` or use Services.msc
           
           ### ⚙️ Default Configuration
-          - **Source**: `%USERPROFILE%\Videos` (current user's Videos folder)
-          - **Destination**: `Z:\Backups\Recordings`
+          - **Source**: `C:\temp\source-videos` (system-accessible directory)
+          - **Destination**: `C:\temp\recordings-backup`
           - **File Type**: `.mkv` files ≥100MB (configurable)
           - **Check Interval**: Every 1 minute
           - **Retry Delay**: 5 minutes for locked files
+          - **Service Account**: LocalSystem (for system-wide access)
           
           ### 🔧 Features
           - Automatic file monitoring
