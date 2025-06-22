@@ -270,81 +270,13 @@ jobs:
 
           Write-Host "Creating fallback installer scripts..."
 
-          # Create a simple install script for fallback
-          $installScript = @"
-          @echo off
-          echo Thrive FileCopy Service - Manual Installation
-          echo.
-          echo This is a fallback installer because MSI build failed.
-          echo Please install manually or contact support.
-          echo.
-          echo Files included:
-          echo - FileCopy.exe (Windows Service)
-          echo - appsettings.json (Configuration)
-          echo.
-          echo For manual installation instructions, see QUICK_START.md
-          pause
-          "@
-          $installScript | Out-File "$packageName/INSTALL_MANUALLY.bat" -Encoding ASCII
+          # Copy fallback installer script
+          Copy-Item "docs/INSTALL_MANUALLY.bat" "$packageName/"
         }
         
-        # Create documentation inline (since installer folder is gitignored)
-        Write-Host "Creating documentation..."
-        
-        # Create quick start guide
-        $quickStartGuide = @"
-        # Thrive FileCopy Service - Quick Start
-
-        ## Installation (30 seconds)
-
-        ### MSI Installer (Recommended)
-        1. Double-click on 'ThriveFileCopyInstaller.msi'
-        2. Click 'Yes' when Windows asks for administrator permission
-        3. Accept the MIT License agreement
-        4. Choose installation directory (default: C:\Program Files\Thrive Community Church\FileCopy Service)
-        5. Click Install - the service will be installed and ready to start
-
-        ### Start the Service (Required)
-        After installation, you must manually start the service:
-        - **Services.msc**: Find "Thrive FileCopy Service" and click Start
-        - **PowerShell**: ``Start-Service ThriveFileCopy``
-        - **Command Prompt**: ``net start ThriveFileCopy``
-
-        The service will then start automatically on every system boot.
-
-        ## Default Configuration
-        - **Source**: C:\temp\source-videos (system-accessible directory)
-        - **Destination**: C:\temp\recordings-backup
-        - **File Type**: .mkv files ≥100MB (configurable)
-        - **Check Interval**: Every 1 minute
-        - **Retry Delay**: 5 minutes for locked files
-        - **Service Account**: LocalSystem (for system-wide access)
-
-        ## Monitoring
-        - **Service Name**: ThriveFileCopy
-        - **Logs**: C:\logs\Thrive\filecopy_log.txt
-        - **Status Check**: Services.msc or ``Get-Service ThriveFileCopy``
-
-        ## Configuration
-        After installation, you can modify settings by editing:
-        ``C:\Program Files\Thrive Community Church\FileCopy Service\appsettings.json``
-
-        Then restart the service:
-        ``Restart-Service ThriveFileCopy``
-
-        ## Features
-        - ✅ Automatic file monitoring
-        - ✅ File lock detection (won't interfere with OBS recording)
-        - ✅ Retry logic for locked files
-        - ✅ Robocopy-style functionality (native C# implementation)
-        - ✅ Comprehensive logging
-        - ✅ Windows service (runs in background)
-
-        ## Support
-        For issues, check the log file or visit:
-        https://github.com/ThriveCommunityChurch/GenericMediaTools
-        "@
-        $quickStartGuide | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
+        # Copy documentation files
+        Write-Host "Copying documentation..."
+        Copy-Item "docs/QUICK_START.md" "$packageName/"
 
         "PACKAGE_NAME=$packageName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
