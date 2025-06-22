@@ -149,11 +149,17 @@ jobs:
               try {
                 # Decode certificate from base64
                 $certBytes = [Convert]::FromBase64String($env:CODE_SIGNING_CERT_BASE64)
-                $certPath = "temp_cert.p12"
+                $certPath = Join-Path $PWD "temp_cert.p12"
                 [System.IO.File]::WriteAllBytes($certPath, $certBytes)
 
+                Write-Host "Certificate saved to: $certPath"
+                Write-Host "Certificate file exists: $(Test-Path $certPath)"
+
                 # Sign the MSI
-                $msiPath = "bin/Release/ThriveFileCopyInstaller.msi"
+                $msiPath = Join-Path $PWD "bin/Release/ThriveFileCopyInstaller.msi"
+                Write-Host "MSI path: $msiPath"
+                Write-Host "MSI file exists: $(Test-Path $msiPath)"
+
                 $signResult = & signtool sign /f $certPath /p $env:CODE_SIGNING_CERT_PASSWORD /t http://timestamp.digicert.com /fd SHA256 /v $msiPath
 
                 if ($LASTEXITCODE -eq 0) {
