@@ -271,7 +271,7 @@ jobs:
           Write-Host "Creating fallback installer scripts..."
 
           # Create a simple install script for fallback
-          @"
+          $installScript = @"
           @echo off
           echo Thrive FileCopy Service - Manual Installation
           echo.
@@ -284,7 +284,8 @@ jobs:
           echo.
           echo For manual installation instructions, see QUICK_START.md
           pause
-          "@ | Out-File "$packageName/INSTALL_MANUALLY.bat" -Encoding ASCII
+          "@
+          $installScript | Out-File "$packageName/INSTALL_MANUALLY.bat" -Encoding ASCII
         }
         
         # Create documentation inline (since installer folder is gitignored)
