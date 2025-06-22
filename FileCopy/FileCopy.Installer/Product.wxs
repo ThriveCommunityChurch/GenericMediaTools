@@ -48,7 +48,7 @@
                         Description="Automatically moves OBS recording files to NAS storage"
                         Type="ownProcess"
                         Start="auto"
-                        Account="LocalSystem"
+                        Account="User"
                         ErrorControl="normal" />
         <ServiceControl Id="ThriveFileCopyServiceControl"
                         Name="ThriveFileCopy"
