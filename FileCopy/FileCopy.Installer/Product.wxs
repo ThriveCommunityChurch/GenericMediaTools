@@ -7,13 +7,11 @@
            UpgradeCode="6283e10a-76b7-4b50-aad8-eeb351bc06ea"
            InstallerVersion="500"
            Compressed="yes"
-           InstallPrivileges="elevated"
-           InstallScope="perMachine">
+           Scope="perMachine">
 
     <SummaryInformation Description="Automatically moves OBS recording files to NAS storage" />
 
     <!-- Request administrator privileges automatically -->
-    <Property Id="ALLUSERS" Value="1" />
     <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
