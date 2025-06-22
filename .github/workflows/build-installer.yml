@@ -292,7 +292,7 @@ jobs:
         Write-Host "Creating documentation..."
         
         # Create quick start guide
-        @"
+        $quickStartGuide = @"
         # Thrive FileCopy Service - Quick Start
 
         ## Installation (30 seconds)
@@ -311,7 +311,7 @@ jobs:
         - **Command Prompt**: ``net start ThriveFileCopy``
 
         The service will then start automatically on every system boot.
-        
+
         ## Default Configuration
         - **Source**: C:\temp\source-videos (system-accessible directory)
         - **Destination**: C:\temp\recordings-backup
@@ -319,31 +319,32 @@ jobs:
         - **Check Interval**: Every 1 minute
         - **Retry Delay**: 5 minutes for locked files
         - **Service Account**: LocalSystem (for system-wide access)
-        
+
         ## Monitoring
         - **Service Name**: ThriveFileCopy
         - **Logs**: C:\logs\Thrive\filecopy_log.txt
         - **Status Check**: Services.msc or ``Get-Service ThriveFileCopy``
-        
+
         ## Configuration
         After installation, you can modify settings by editing:
         ``C:\Program Files\Thrive Community Church\FileCopy Service\appsettings.json``
-        
+
         Then restart the service:
         ``Restart-Service ThriveFileCopy``
-        
+
         ## Features
         - ✅ Automatic file monitoring
         - ✅ File lock detection (won't interfere with OBS recording)
-        - ✅ Retry logic for locked files  
+        - ✅ Retry logic for locked files
         - ✅ Robocopy-style functionality (native C# implementation)
         - ✅ Comprehensive logging
         - ✅ Windows service (runs in background)
-        
+
         ## Support
         For issues, check the log file or visit:
         https://github.com/ThriveCommunityChurch/GenericMediaTools
-        "@ | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
+        "@
+        $quickStartGuide | Out-File "$packageName/QUICK_START.md" -Encoding UTF8
 
         "PACKAGE_NAME=$packageName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
