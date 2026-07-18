@@ -1,0 +1,20 @@
+{
+  "LogDir": "C:\\logs\\Thrive",
+  "Defaults": {
+    "Transfers": 4,
+    "Retries": 3,
+    "DriveChunkSizeMB": 64
+  },
+  "Retention": [],
+  "Jobs": [
+    {
+      "Name": "Raw MKV recordings to NAS archive",
+      "Mode": "move",
+      "Source": "C:\\Users\\wyatt\\Videos",
+      "Destination": "\\\\10.1.10.143\\Public\\Wyatt\\ThriveLiveBackups\\Recordings",
+      "Include": "*.mkv",
+      "MinAgeMinutes": 10,
+      "MinFileSize": "100b"
+    }
+  ]
+}
