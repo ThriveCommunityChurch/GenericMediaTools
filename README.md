@@ -7,6 +7,9 @@ Used to autonomously copy raw recordings to the NAS at the conclusion of events.
 ### Media Duration Calculator
 Used for calculating the ms time of a video file to plug into the automations that we use within the StreamDeck software for OBS.
 
+### Drive Sync
+Automatically moves finished OBS recordings to Google Drive via rclone — replaces the manual robocopy-to-NAS + manual Drive upload workflow.
+
 ## Coming Soon
 ### Duplicate Remover
 Used to remove duplicate files using filename, size and extension.

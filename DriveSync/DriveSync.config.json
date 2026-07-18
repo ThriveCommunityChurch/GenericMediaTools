@@ -1,0 +1,12 @@
+{
+  "Source": "C:\\Users\\wyatt\\Videos",
+  "DriveRemote": "gdrive:ThriveLiveBackups/Recordings",
+  "IncludePattern": "*.mkv",
+  "MinFileSize": "100b",
+  "MinAgeMinutes": 10,
+  "Transfers": 4,
+  "RetryCount": 3,
+  "DriveChunkSizeMB": 64,
+  "NasMirrorPath": "",
+  "LogDir": "C:\\logs\\Thrive"
+}
