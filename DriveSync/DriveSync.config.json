@@ -1,0 +1,52 @@
+{
+  "LogDir": "C:\\logs\\Thrive",
+  "Defaults": {
+    "Transfers": 4,
+    "Retries": 3,
+    "DriveChunkSizeMB": 64
+  },
+  "Retention": [
+    {
+      "Name": "NAS MKV archive - keep 1 year",
+      "Path": "\\\\10.1.10.143\\Public\\Wyatt\\ThriveLiveBackups\\Recordings",
+      "Include": "*.mkv",
+      "MaxAgeDays": 365
+    },
+    {
+      "Name": "Drive MKV archive - keep 1 year",
+      "Path": "gdrive:Archive/Recordings",
+      "Include": "*.mkv",
+      "MaxAgeDays": 365
+    }
+  ],
+  "Jobs": [
+    {
+      "Name": "Raw MKV recordings to NAS archive",
+      "Mode": "move",
+      "Source": "C:\\Users\\wyatt\\Videos",
+      "Destination": "\\\\10.1.10.143\\Public\\Wyatt\\ThriveLiveBackups\\Recordings",
+      "Include": "*.mkv",
+      "MinAgeMinutes": 10,
+      "MinFileSize": "100b"
+    },
+    {
+      "Name": "NAS MKV archive to Drive",
+      "Mode": "copy",
+      "Source": "\\\\10.1.10.143\\Public\\Wyatt\\ThriveLiveBackups\\Recordings",
+      "Destination": "gdrive:Archive/Recordings",
+      "Include": "*.mkv",
+      "MinAgeMinutes": 10,
+      "MinFileSize": "100b",
+      "MaxAgeDays": 365
+    },
+    {
+      "Name": "Final MP4 recordings to Drive",
+      "Mode": "copy",
+      "Source": "J:\\Thrive\\Sermon Videos",
+      "Destination": "gdrive:Sermon Videos",
+      "Include": "*.mp4",
+      "MinAgeMinutes": 10,
+      "MinFileSize": "100b"
+    }
+  ]
+}
